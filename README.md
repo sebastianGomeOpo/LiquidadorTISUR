@@ -13,7 +13,7 @@ Proscia is a high-growth digital pathology leader—growing fast, scaling global
 
 This limits Proscia’s ability to **act quickly and make data-driven decisions at scale**.
 
-## 💡 Solution: OpsBot Lite
+## Solution: OpsBot Lite
 **OpsBot Lite** is a **LLM-powered internal tooling pipeline** that:
 1. Ingests unstructured documents (e.g., PDF contracts, CRM exports)
 2. Extracts and standardizes key fields using GPT-based prompt engineering
