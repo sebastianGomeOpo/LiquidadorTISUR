@@ -47,7 +47,7 @@ This prototype showcases **how an LLM-powered automation script can reduce hours
        +-----------------------------+
 ```
 
-## 📦 Sample Output Fields
+## Sample Output Fields
 - Customer Name
 - Product Purchased (e.g., Concentriq AP-Dx, Embeddings)
 - Contract Start Date / Value
@@ -55,27 +55,27 @@ This prototype showcases **how an LLM-powered automation script can reduce hours
 - Custom Features
 - Internal Stakeholders
 
-## 📌 Tech Stack
+## Tech Stack
 - Python
 - LangChain or OpenAI SDK
 - PyMuPDF/pdfplumber (PDF Parsing)
 - SQLite or CSV
 - Streamlit (Optional Visualization Layer)
 
-## 🚀 Why This Matters for Proscia
+## Why This Matters for Proscia
 This project reflects:
 - **Product Operations Mindset**: Prioritizing pain points, scoping MVPs, and building fast
 - **Startup Execution Grit**: Building scrappy solutions with high impact potential
 - **AI-First Thinking**: Leveraging LLMs for internal efficiency
 - **Cross-Functional Awareness**: Designed with executives, product managers, and engineers in mind
 
-## 🧩 Next Steps
+## Next Steps
 - [ ] Create simulated CRM and contract files
 - [ ] Build LLM extraction pipeline
 - [ ] Normalize and structure output
 - [ ] (Optional) Add Streamlit viewer
 
-## ✨ Final Note
+## Final Note
 This is a small step toward a bigger opportunity: **internal AI-powered tooling that saves time, reduces manual error, and amplifies decision velocity.**
 
 Thank you again for the inspiration, and I’m excited to show how I think about building for impact—before Day One.
