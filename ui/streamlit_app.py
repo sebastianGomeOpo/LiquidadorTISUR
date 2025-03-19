@@ -2,6 +2,7 @@ import sys
 import os
 import tempfile
 import json
+import re
 import streamlit as st
 
 # Ensure src directory is in the path
@@ -28,7 +29,6 @@ Upload a PDF contract and select an analysis task below to:
 
 # ---------------------- USER INPUTS ----------------------
 st.markdown("### 📥 Upload & Task Selection")
-
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -53,18 +53,36 @@ if uploaded_file:
         raw = extract_and_clean_pdf(temp_path)
         structured = structure_contract_sections(raw["clean_text"])
 
-    st.markdown("### 📂 Extracted Contract Sections")
+    # ---------------------- STRUCTURED SECTIONS ----------------------
+        st.markdown("### 📂 Extracted Contract Sections")
     for section, content in structured.items():
         with st.expander(f"📄 {section.replace('_', ' ').title()}"):
-            st.markdown(content if content else "*[Not Found]*")
-
+            if content:
+                # Improved display: split only on newlines or explicit list indicators
+                if any(token in content for token in ['\n', '•']):
+                    # Display nicely as bullet list
+                    for line in content.split('\n'):
+                        cleaned = line.strip().lstrip("-•–")
+                        if cleaned:
+                            st.markdown(f"- {cleaned}")
+                else:
+                    # Display full paragraph if not a list
+                    st.markdown(content.strip())
+            else:
+                st.markdown("*[Not Found]*")
+                
     # ---------------------- LLM ANALYSIS ----------------------
     st.markdown("### 🤖 LLM-Generated Insights")
     with st.spinner(f"Generating {selected_label.lower()}..."):
         result = run_llm_task(structured, task=task_key)
 
     st.success("LLM analysis complete.")
-    st.markdown(result if result else "*⚠️ LLM response could not be generated.*")
+
+    if result:
+        st.markdown("#### 📋 Clean Output:")
+        st.code(result.strip(), language='markdown')
+    else:
+        st.warning("⚠️ LLM response could not be generated.")
 
     # ---------------------- DOWNLOAD SECTION ----------------------
     st.markdown("### 📤 Export Results")
