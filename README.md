@@ -2,7 +2,7 @@
 
 Welcome to **OpsBot Lite**, a lightweight proof-of-concept (PoC) tool designed to tackle a key internal pain point surfaced during my Proscia Product Operations interview: **unstructured, scattered, and siloed internal data that makes strategic decision-making slow and inefficient.**
 
-This project was inspired by a conversation with Proscia’s Product Operations team about the growing need to extract structured insights from diverse sources like **CRM notes, PDF contracts, and internal documentation**, and to consolidate these insights into a **queryable, presentable, and role-specific format.**
+This project was inspired by a conversation with Proscia’s Product Operations Lead about the growing need to extract structured insights from diverse sources like **CRM notes, PDF contracts, and internal documentation**, and to consolidate these insights into a **queryable, presentable, and role-specific format.**
 
 ## Problem Statement
 Proscia is a high-growth digital pathology leader—growing fast, scaling globally, and adding complexity across internal systems. Yet, internal data often:
@@ -18,9 +18,9 @@ This limits Proscia’s ability to **act quickly and make data-driven decisions 
 1. Ingests unstructured documents (e.g., PDF contracts, CRM exports)
 2. Extracts and standardizes key fields using GPT-based prompt engineering
 3. Stores results in a structured, queryable SQLite database or CSV format
-4. (Optional) Visualizes extracted insights through a lightweight dashboard
+4. Visualizes extracted insights through a lightweight dashboard
 
-This prototype showcases **how an LLM-powered automation script can reduce hours of manual data wrangling into seconds—freeing Proscia teams to focus on what matters: delivering life-changing technology faster.**
+This prototype showcases **how an LLM-powered automation script can reduce hours of manual data wrangling into seconds, freeing Proscia teams to focus on what matters: delivering life-changing technology faster.**
 
 ## 🔧 Architecture Overview
 ```
@@ -60,7 +60,7 @@ This prototype showcases **how an LLM-powered automation script can reduce hours
 - LangChain or OpenAI SDK
 - PyMuPDF/pdfplumber (PDF Parsing)
 - SQLite or CSV
-- Streamlit (Optional Visualization Layer)
+- Streamlit (Visualization Layer)
 
 ## Why This Matters for Proscia
 This project reflects:
@@ -78,5 +78,5 @@ This project reflects:
 ## Final Note
 This is a small step toward a bigger opportunity: **internal AI-powered tooling that saves time, reduces manual error, and amplifies decision velocity.**
 
-Thank you again for the inspiration, and I’m excited to show how I think about building for impact—before Day One.
+Thank you again for the inspiration, and I’m excited to show how I think about building for impact—before Day One. Can't wait to be your in-house AI engineer for internal tools!
 
