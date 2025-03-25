@@ -4,14 +4,18 @@ from io import BytesIO
 import pdfplumber
 import tempfile
 import os
-from app.pdf_parser import extract_text_by_page, extract_tables_by_page
+from app.pdf_parser import (
+    extract_text_by_page,
+    extract_tables_with_line_strategy,
+    DEFAULT_TABLE_SETTINGS
+)
 
 # Page config and title
 st.set_page_config(page_title="PDF Extractor", page_icon="🔧", layout="wide")
 st.title("📄 PDF Table & Text Extractor using pdfplumber")
 
 # File upload
-uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+uploaded_file = st.file_uploader("📎 Upload a PDF file", type=["pdf"])
 
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -21,7 +25,7 @@ if uploaded_file:
     # Try extracting text and tables
     try:
         text_by_page = extract_text_by_page(pdf_path)
-        tables_by_page = extract_tables_by_page(pdf_path)
+        tables_by_page, strategy_by_page = extract_tables_with_line_strategy(pdf_path)
     except Exception as e:
         st.error(f"❌ Failed to process PDF: {e}\n\nTry re-saving the file using a PDF viewer like Chrome or Preview.")
         st.stop()
@@ -35,7 +39,17 @@ if uploaded_file:
 
     # 🔽 Collapsible Extracted Tables
     with st.expander("📊 Extracted Tables", expanded=False):
-        if selected_page in tables_by_page:
+        strategy = strategy_by_page.get(selected_page, "unknown")
+        strategy_color = {
+            "lines": "🟢",
+            "none": "🔴",
+            "error": "❌",
+            "unknown": "⚪️"
+        }.get(strategy, "⚪️")
+
+        st.markdown(f"**Strategy used:** {strategy_color} `{strategy}`")
+
+        if selected_page in tables_by_page and strategy != "none":
             for i, df in enumerate(tables_by_page[selected_page]):
                 st.markdown(f"#### 📎 Table {i+1}")
                 st.dataframe(df)
@@ -50,25 +64,25 @@ if uploaded_file:
             st.info("No tables found on this page.")
 
     # 🔍 Optional table debug image viewer
-    if st.checkbox("🔍 Generate table debug images (for dev)?"):
-        st.subheader("🖼️ Table Detection Debug View")
-        try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    im = page.to_image(resolution=150)
-                    debug_im = im.debug_tablefinder(table_settings={
-                        "vertical_strategy": "lines",
-                        "horizontal_strategy": "lines",
-                        "snap_tolerance": 3,
-                        "join_tolerance": 3,
-                        "edge_min_length": 3,
-                        "intersection_tolerance": 3
-                    })
+    if st.checkbox("🔍 Generate table debug image for selected page?"):
+        st.subheader(f"🖼️ Table Detection Debug — {selected_page}")
 
-                    img_bytes = BytesIO()
-                    debug_im.save(img_bytes, format="PNG")
-                    img_bytes.seek(0)
-                    st.image(img_bytes, caption=f"🧩 Table Debug — Page {i+1}")
-                    st.markdown("---")
+        try:
+            page_num = int(selected_page.split(" ")[1]) - 1
+
+            with pdfplumber.open(pdf_path) as pdf:
+                page = pdf.pages[page_num]
+                im = page.to_image(resolution=150)
+                debug_im = im.debug_tablefinder(table_settings=DEFAULT_TABLE_SETTINGS)
+
+                # ✅ Optional: Draw rectangles to help understand detected cell boundaries
+                debug_im.draw_rects(page.rects, stroke="blue", stroke_width=1)
+
+                img_bytes = BytesIO()
+                debug_im.save(img_bytes, format="PNG")
+                img_bytes.seek(0)
+
+                st.markdown(f"**🟢 Line-based — {selected_page}**")
+                st.image(img_bytes, caption=f"🧩 Table Debug — {selected_page}")
         except Exception as e:
-            st.error(f"⚠️ Could not generate debug images: {e}")
+            st.error(f"⚠️ Could not generate debug image: {e}")
