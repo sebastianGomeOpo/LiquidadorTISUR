@@ -69,12 +69,6 @@ This project reflects:
 - **AI-First Thinking**: Leveraging LLMs for internal efficiency
 - **Cross-Functional Awareness**: Designed with executives, product managers, and engineers in mind
 
-## Next Steps
-- [ ] Create simulated CRM and contract files
-- [ ] Build LLM extraction pipeline
-- [ ] Normalize and structure output
-- [ ] (Optional) Add Streamlit viewer
-
 ## Final Note
 This is a small step toward a bigger opportunity: **internal AI-powered tooling that saves time, reduces manual error, and amplifies decision velocity.**
 
