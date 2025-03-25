@@ -1,18 +1,18 @@
 import streamlit as st
-from PIL import Image
 from io import BytesIO
-import pdfplumber
 import tempfile
 import os
 from app.pdf_parser import (
-    extract_text_by_page,
-    extract_tables_with_line_strategy,
+    extract_text_single_page,
+    extract_tables_single_page,
+    extract_total_pages,
+    save_debug_image_single_page,
     DEFAULT_TABLE_SETTINGS
 )
 
 # Page config and title
 st.set_page_config(page_title="PDF Extractor", page_icon="🔧", layout="wide")
-st.title("📄 PDF Table & Text Extractor using pdfplumber")
+st.title("📄 PDF Table & Text Extractor")
 
 # File upload
 uploaded_file = st.file_uploader("📎 Upload a PDF file", type=["pdf"])
@@ -22,24 +22,32 @@ if uploaded_file:
         tmp.write(uploaded_file.read())
         pdf_path = tmp.name
 
-    # Try extracting text and tables
+    # Get total pages without reading all
     try:
-        text_by_page = extract_text_by_page(pdf_path)
-        tables_by_page, strategy_by_page = extract_tables_with_line_strategy(pdf_path)
+        total_pages = extract_total_pages(pdf_path)
     except Exception as e:
-        st.error(f"❌ Failed to process PDF: {e}\n\nTry re-saving the file using a PDF viewer like Chrome or Preview.")
+        st.error(f"❌ Failed to read PDF: {e}")
         st.stop()
 
-    all_pages = list(text_by_page.keys())
-    selected_page = st.selectbox("📑 Select a page to view", all_pages)
+    page_options = [f"Page {i}" for i in range(1, total_pages + 1)]
+    selected_page_label = st.selectbox("📑 Select a page to view", page_options)
+    selected_page_idx = int(selected_page_label.split(" ")[1])
+    page_label = f"Page {selected_page_idx}"
+
+    # Extract only selected page's content
+    try:
+        text = extract_text_single_page(pdf_path, selected_page_idx - 1)
+        tables, strategy = extract_tables_single_page(pdf_path, selected_page_idx - 1)
+    except Exception as e:
+        st.error(f"❌ Error extracting content: {e}")
+        st.stop()
 
     # 🔽 Collapsible Extracted Text
     with st.expander("🧠 Extracted Text", expanded=False):
-        st.text(text_by_page[selected_page])
+        st.text(text)
 
     # 🔽 Collapsible Extracted Tables
     with st.expander("📊 Extracted Tables", expanded=False):
-        strategy = strategy_by_page.get(selected_page, "unknown")
         strategy_color = {
             "lines": "🟢",
             "none": "🔴",
@@ -49,40 +57,27 @@ if uploaded_file:
 
         st.markdown(f"**Strategy used:** {strategy_color} `{strategy}`")
 
-        if selected_page in tables_by_page and strategy != "none":
-            for i, df in enumerate(tables_by_page[selected_page]):
+        if tables and strategy != "none":
+            for i, df in enumerate(tables):
                 st.markdown(f"#### 📎 Table {i+1}")
                 st.dataframe(df)
                 csv = df.to_csv(index=False).encode("utf-8")
                 st.download_button(
                     label=f"⬇️ Download Table {i+1} (CSV)",
                     data=csv,
-                    file_name=f"{selected_page}_table{i+1}.csv",
+                    file_name=f"{page_label}_table{i+1}.csv",
                     mime="text/csv"
                 )
         else:
             st.info("No tables found on this page.")
 
-    # 🔍 Optional table debug image viewer
-    if st.checkbox("🔍 Generate table debug image for selected page?"):
-        st.subheader(f"🖼️ Table Detection Debug — {selected_page}")
+    # 🔍 Debug image generator
+    if st.checkbox("🔍 Generate an image for selected page to verify table detection?"):
+        st.subheader(f"🖼️ Table Detection Preview — {page_label}")
 
         try:
-            page_num = int(selected_page.split(" ")[1]) - 1
-
-            with pdfplumber.open(pdf_path) as pdf:
-                page = pdf.pages[page_num]
-                im = page.to_image(resolution=150)
-                debug_im = im.debug_tablefinder(table_settings=DEFAULT_TABLE_SETTINGS)
-
-                # ✅ Optional: Draw rectangles to help understand detected cell boundaries
-                debug_im.draw_rects(page.rects, stroke="blue", stroke_width=1)
-
-                img_bytes = BytesIO()
-                debug_im.save(img_bytes, format="PNG")
-                img_bytes.seek(0)
-
-                st.markdown(f"**🟢 Line-based — {selected_page}**")
-                st.image(img_bytes, caption=f"🧩 Table Debug — {selected_page}")
+            img_bytes = save_debug_image_single_page(pdf_path, selected_page_idx - 1)
+            st.markdown(f"**🟢 Line-based — {page_label}**")
+            st.image(img_bytes, caption=f"🧩 Table Debug — {page_label}")
         except Exception as e:
             st.error(f"⚠️ Could not generate debug image: {e}")

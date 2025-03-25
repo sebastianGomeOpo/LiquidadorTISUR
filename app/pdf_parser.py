@@ -15,14 +15,6 @@ DEFAULT_TABLE_SETTINGS = {
     "text_y_tolerance": 3,
 }
 
-def extract_text_by_page(pdf_path):
-    text_pages = {}
-    with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            text = page.extract_text()
-            text_pages[f"Page {i+1}"] = text or "[No text detected]"
-    return text_pages
-
 
 def is_valid_table(table):
     if not table or not isinstance(table, list) or len(table) < 2:
@@ -34,75 +26,72 @@ def is_valid_table(table):
 
     total_cells = sum(len(row) for row in table)
     non_empty_cells = sum(1 for row in table for cell in row if cell and cell.strip())
-    
+
     if total_cells == 0:
         return False
-    
-    # Allow tables even if they have lots of short cells
+
     if non_empty_cells / total_cells < 0.4:
         return False
 
     return True
 
 
-def extract_tables_with_line_strategy(pdf_path, verbose=False):
-    tables_by_page = {}
-    strategy_by_page = {}
-
+def extract_text_single_page(pdf_path, page_number):
+    """
+    Extracts plain text from a single page.
+    Returns: str
+    """
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            page_label = f"Page {i+1}"
-            try:
-                raw_tables = page.extract_tables(table_settings=DEFAULT_TABLE_SETTINGS)
-                valid_tables = [t for t in raw_tables if is_valid_table(t)]
-
-                if valid_tables:
-                    tables_by_page[page_label] = [pd.DataFrame(t) for t in valid_tables]
-                    strategy_by_page[page_label] = "lines"
-                else:
-                    strategy_by_page[page_label] = "none"
-
-            except Exception as e:
-                if verbose:
-                    print(f"⚠️ Error extracting tables from {page_label}: {e}")
-                strategy_by_page[page_label] = "error"
-
-    return tables_by_page, strategy_by_page
+        page = pdf.pages[page_number]
+        return page.extract_text() or "[No text detected]"
 
 
-def extract_tables_safely(pdf_path, verbose=False):
+def extract_tables_single_page(pdf_path, page_number, verbose=False):
+    """
+    Extracts tables from a single page.
+    Returns: (List[pd.DataFrame], strategy: str)
+    """
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            page = pdf.pages[page_number]
+            raw_tables = page.extract_tables(table_settings=DEFAULT_TABLE_SETTINGS)
+            valid_tables = [t for t in raw_tables if is_valid_table(t)]
+            dfs = [pd.DataFrame(t) for t in valid_tables]
+            strategy = "lines" if dfs else "none"
+            return dfs, strategy
+    except Exception as e:
+        if verbose:
+            print(f"⚠️ Error extracting tables from page {page_number + 1}: {e}")
+        return [], "error"
+
+
+def extract_total_pages(pdf_path):
+    """
+    Returns total number of pages in the PDF.
+    """
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            try:
-                tables = page.extract_tables(table_settings=DEFAULT_TABLE_SETTINGS)
-                valid_tables = [t for t in tables if is_valid_table(t)]
-                if not valid_tables:
-                    print(f"Page {i+1}: No valid tables found.")
-                    continue
-                for t_idx, table in enumerate(valid_tables):
-                    df = pd.DataFrame(table)
-                    print(f"\nPage {i+1} - Table {t_idx+1}")
-                    print(df)
-                    if verbose:
-                        print(df.to_markdown())
-            except Exception as e:
-                print(f"❌ Failed to extract tables from Page {i+1}: {e}")
+        return len(pdf.pages)
 
 
-def save_debug_images(pdf_path, output_dir="debug_tables", resolution=150, table_settings=None):
-    os.makedirs(output_dir, exist_ok=True)
+def save_debug_image_single_page(pdf_path, page_number, resolution=100, table_settings=None):
+    """
+    Generates and returns a debug image for table detection on a single page.
+    Returns: BytesIO image stream
+    """
+    from io import BytesIO
+
     table_settings = table_settings or DEFAULT_TABLE_SETTINGS
 
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            try:
-                im = page.to_image(resolution=resolution)
-                debug_im = im.debug_tablefinder(table_settings=table_settings)
+        page = pdf.pages[page_number]
+        im = page.to_image(resolution=resolution)
+        debug_im = im.debug_tablefinder(table_settings=table_settings)
 
-                # 🔍 Optional: Draw detected rectangles in blue for better visual inspection
-                debug_im.draw_rects(page.rects, stroke="blue", stroke_width=1)
+        # Draw rectangles for visual assistance
+        debug_im.draw_rects(page.rects, stroke="blue", stroke_width=1)
 
-                image_path = os.path.join(output_dir, f"debug_page_{i+1}.png")
-                debug_im.save(image_path)
-            except Exception as e:
-                print(f"⚠️ Couldn't generate debug image for Page {i+1}: {e}")
+        img_bytes = BytesIO()
+        debug_im.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+
+        return img_bytes
