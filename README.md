@@ -21,8 +21,8 @@ This repo aims to **automate that transformation pipeline** — turning unstruct
 | Version | Branch | Stack | Best For | Summary |
 |--------|--------|-------|----------|---------|
 | **v0** | `main` | `PDFPlumber + OpenAI` | ✅ Quick prototyping<br>✅ Lightweight extractions<br>✅ Page-by-page summaries | Extracts raw text and tables from PDFs using `pdfplumber`, then summarizes via GPT-4o. Ideal for simple forms or multi-page review. |
-| **v1** | `v1`   | `Agentic Document Extraction (ADE)` | ✅ Formatted documents<br>✅ Contracts w/ visual structure<br>✅ Section-level summaries | Sends full PDFs to an external ADE API and groups semantic chunks into labeled sections. Excellent for internal PDF templates or procurement docs. |
-| **v2** | `v2`   | `LangChain + GPT-4o` | ✅ Structured data schema<br>✅ Automating contract ingestion<br>✅ Extracting JSON records | Uses LangChain's document loader and schema detection to extract structured records with schema customization. Great for generating tabular insights from customer contracts. |
+| **v1** | `v1`   | `LangChain + GPT-4o` | ✅ Structured data schema<br>✅ Automating contract ingestion<br>✅ Extracting JSON records | Uses LangChain's document loader and schema detection to extract structured records with schema customization. Great for generating tabular insights from customer contracts. |
+| **v2** | `v2`   | `Agentic Document Extraction (ADE)` | ✅ Formatted documents<br>✅ Contracts w/ visual structure<br>✅ Section-level summaries | Sends full PDFs to an external ADE API and groups semantic chunks into labeled sections. Excellent for internal PDF templates or procurement docs. |
 
 ---
 
@@ -30,26 +30,43 @@ This repo aims to **automate that transformation pipeline** — turning unstruct
 
 | Feature | v0 | v1 | v2 |
 |--------|----|----|----|
-| Extracts Tables | ✅ | ✅ | ❌ (focused on text records) |
+| Extracts Tables | ✅ | ❌ | ✅ |
 | Extracts Raw Text | ✅ | ✅ | ✅ |
 | Section-Based Summarization | 🚫 | ✅ | ✅ |
-| Structured JSON Record Extraction | 🚫 | 🚫 | ✅ |
-| Custom Schema Selection | 🚫 | 🚫 | ✅ |
-| Full PDF Summarization | ✅ | ✅ | 🚫 |
+| Structured JSON Record Extraction | 🚫 | ✅ | 🚫 |
+| Custom Schema Selection | 🚫 | ✅ | 🚫 |
+| Full PDF Summarization | ✅ | 🚫 | ✅ |
 | Export CSV | ✅ | ✅ | ✅ |
-| Best For | Simpler docs | Long form or styled PDFs | Tabular contract data |
+| Best For | Simpler docs | Tabular contract data | Long-form/styled PDFs |
 
 ---
 
 ## ▶️ How to Run
 
-> ⚙️ Each version lives in its own **branch**.
+Each version lives in its own branch. Follow these steps to get started:
 
-### Clone the repo:
+### 1. ⬇️ Clone the repo:
 ```bash
 git clone https://github.com/ozcanmiraay/opsbot.git
 cd opsbot
 ```
+
+### 2. 🐍 Create and activate a virtual environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate     # macOS/Linux
+# OR
+venv\Scripts\activate        # Windows
+```
+
+### 3. 📦 Install required dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 🚀 Launch the App
 
 ### ⚙️ v0: PDFPlumber Text & Table Extractor
 ```bash
@@ -57,23 +74,23 @@ git checkout main
 streamlit run app/streamlit_app.py
 ```
 
-### 🤖 v1: Agentic Document Intelligence
+### 🧠 v1: LangChain Schema-Based Extractor
 ```bash
 git checkout v1
-streamlit run ui/streamlit_app.py
+streamlit run app/streamlit_app.py
 ```
 
-### 🧠 v2: LangChain Schema-Based Extractor
+### 🤖 v2: Agentic Document Intelligence Viewer
 ```bash
 git checkout v2
-streamlit run app/streamlit_app.py
+streamlit run ui/streamlit_app.py
 ```
 
 ---
 
 ## 📸 Screenshots
 
-| v0: Lightweight PDF Reader | v1: ADE-Powered Chunk Viewer | v2: LangChain Schema Extractor |
+| v0: Lightweight PDF Reader | v1: LangChain Schema Extractor | v2: ADE-Powered Chunk Viewer |
 |----------------------------|-------------------------------|-------------------------------|
 | ![v0 Screenshot](./screenshots/v0.png) | ![v1 Screenshot](./screenshots/v1.png) | ![v2 Screenshot](./screenshots/v2.png) |
 
