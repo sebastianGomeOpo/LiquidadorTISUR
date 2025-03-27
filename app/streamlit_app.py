@@ -30,41 +30,63 @@ if uploaded_file:
 
     st.session_state["pdf_path"] = pdf_path
 
+    # === Total Pages ===
     try:
         total_pages = extract_total_pages(pdf_path)
     except Exception as e:
         st.error(f"❌ Failed to read PDF: {e}")
         st.stop()
 
+    # === Extract All Text Once ===
     if "full_text_by_page" not in st.session_state:
         st.session_state["full_text_by_page"] = {
             f"Page {i+1}": extract_text_single_page(pdf_path, i)
             for i in range(total_pages)
         }
 
+    # === Summarize PDF Button ===
     if "global_summary" not in st.session_state:
         if st.button("🧠 Summarize Full PDF"):
             with st.spinner("Summarizing the entire PDF..."):
                 st.session_state["global_summary"] = summarize_pdf(st.session_state["full_text_by_page"])
 
+    # === Show Global Summary ===
     if "global_summary" in st.session_state:
-        st.markdown("### 🧠 PDF Overview Summary")
-        st.success(st.session_state["global_summary"])
+        with st.expander("🧠 PDF Overview Summary", expanded=True):
+            st.success(st.session_state["global_summary"])
 
+    # === Page Selection ===
     page_options = [f"Page {i}" for i in range(1, total_pages + 1)]
     selected_page_label = st.selectbox("📑 Select a page to view", page_options)
     selected_page_idx = int(selected_page_label.split(" ")[1])
     page_label = f"Page {selected_page_idx}"
     page_text = st.session_state["full_text_by_page"][page_label]
 
+    # === Track Page Switching ===
+    if "last_selected_page" not in st.session_state:
+        st.session_state.last_selected_page = selected_page_idx
+
+    if selected_page_idx != st.session_state.last_selected_page:
+        st.session_state.expand_text_section = False  # Collapse when switching
+        st.session_state.last_selected_page = selected_page_idx
+
+    if "expand_text_section" not in st.session_state:
+        st.session_state.expand_text_section = False
+
+    # === Extract Tables ===
     try:
         tables, strategy = extract_tables_single_page(pdf_path, selected_page_idx - 1)
     except Exception as e:
         st.error(f"❌ Error extracting content: {e}")
         st.stop()
 
-    with st.expander("🧠 Extracted Text", expanded=False):
-        summarize_triggered = st.button("📝 Summarize This Page")
+    # === Text Section with Summary ===
+    with st.expander("🧠 Extracted Text", expanded=st.session_state.expand_text_section):
+        col1, col2 = st.columns([1, 6])
+        with col1:
+            summarize_triggered = st.button("📝 Summarize This Page", key=f"summary-btn-{selected_page_idx}")
+        with col2:
+            pass
 
         if summarize_triggered:
             if "global_summary" not in st.session_state:
@@ -72,12 +94,16 @@ if uploaded_file:
             else:
                 with st.spinner("Summarizing this page..."):
                     summary = summarize_page(page_text, context_summary=st.session_state["global_summary"])
-                    st.markdown("**🔍 Page Summary:**")
-                    st.info(summary)
+                    st.session_state[f"page_{selected_page_idx}_summary"] = summary
+                    st.session_state.expand_text_section = True  # Keep open after rerun
 
-        # Show the raw text *after* the summary
+        if f"page_{selected_page_idx}_summary" in st.session_state:
+            st.markdown("**🔍 Page Summary:**")
+            st.info(st.session_state[f"page_{selected_page_idx}_summary"])
+
         st.text(page_text)
 
+    # === Tables Section ===
     with st.expander("📊 Extracted Tables", expanded=False):
         strategy_color = {
             "lines": "🟢",
@@ -102,10 +128,11 @@ if uploaded_file:
         else:
             st.info("No tables found on this page.")
 
-    if st.checkbox("🔍 Generate table debug image for selected page?"):
+    # === Optional Debug Image ===
+    if st.checkbox("🔍 Generate table preview image for selected page?"):
         st.subheader(f"🖼️ Table Detection Preview — {page_label}")
         try:
             img_bytes = save_debug_image_single_page(pdf_path, selected_page_idx - 1)
-            st.image(img_bytes, caption=f"🧩 Table Debug — {page_label}")
+            st.image(img_bytes, caption=f"🧩 Table Preview — {page_label}")
         except Exception as e:
-            st.error(f"⚠️ Could not generate debug image: {e}")
+            st.error(f"⚠️ Could not generate preview image: {e}")
