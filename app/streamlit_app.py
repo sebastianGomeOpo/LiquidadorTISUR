@@ -136,3 +136,7 @@ if uploaded_file:
             st.image(img_bytes, caption=f"🧩 Table Preview — {page_label}")
         except Exception as e:
             st.error(f"⚠️ Could not generate preview image: {e}")
+
+# Footer
+st.markdown("---")
+st.markdown("🔧 Built with 💙 by **Miray Ozcan** | Powered by **PDFPlumber + GPT-4o + Streamlit**")
