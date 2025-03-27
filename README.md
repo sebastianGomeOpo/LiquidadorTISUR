@@ -1,76 +1,102 @@
-# OpsBot Lite: Structured Insights from Unstructured Chaos
+# 📄 Intelligent PDF Extractor Suite  
+Built with 💙 by **Miray Ozcan** | Powered by **Streamlit + GPT-4o + LangChain + PDFPlumber**
 
-Welcome to **OpsBot Lite**, a lightweight proof-of-concept (PoC) tool designed to tackle a key internal pain point surfaced during my Proscia Product Operations interview: **unstructured, scattered, and siloed internal data that makes strategic decision-making slow and inefficient.**
+> **Solve real internal bottlenecks with AI.**  
+> This multi-version toolset tackles one of the biggest pain points faced by product operations and cross-functional teams: **valuable business data trapped inside messy PDFs** like contracts, onboarding forms, invoices, or configuration summaries.  
 
-This project was inspired by a conversation with Proscia’s Product Operations Lead about the growing need to extract structured insights from diverse sources like **CRM notes, PDF contracts, and internal documentation**, and to consolidate these insights into a **queryable, presentable, and role-specific format.**
+---
 
-## Problem Statement
-Proscia is a high-growth digital pathology leader—growing fast, scaling globally, and adding complexity across internal systems. Yet, internal data often:
-- Exists across disparate formats (PDFs, CRMs, notes)
-- Is manually entered and error-prone
-- Is unstructured and hard to query
-- Lives in silos across departments
+## 🔧 Motivation
 
-This limits Proscia’s ability to **act quickly and make data-driven decisions at scale**.
+During my internship interview at **Proscia**, I interviewed the Product Operations Lead and uncovered key internal pain points:
 
-## Solution: OpsBot Lite
-**OpsBot Lite** is a **LLM-powered internal tooling pipeline** that:
-1. Ingests unstructured documents (e.g., PDF contracts, CRM exports)
-2. Extracts and standardizes key fields using GPT-based prompt engineering
-3. Stores results in a structured, queryable SQLite database or CSV format
-4. Visualizes extracted insights through a lightweight dashboard
+> ⚠️ _“The data often lives in PDFs we’ve signed with customers, but it’s never made it into a spreadsheet that’s queryable... It’s scattered, manual, inconsistent, or siloed. If we could automatically pull structured info from these documents and present it cleanly, we’d save hours per deal."_  
 
-This prototype showcases **how an LLM-powered automation script can reduce hours of manual data wrangling into seconds, freeing Proscia teams to focus on what matters: delivering life-changing technology faster.**
+This repo aims to **automate that transformation pipeline** — turning unstructured PDFs into structured, queryable, and exportable datasets with just a few clicks.
 
-## 🔧 Architecture Overview
+---
+
+## 🚦 App Versions Overview
+
+| Version | Branch | Stack | Best For | Summary |
+|--------|--------|-------|----------|---------|
+| **v0** | `main` | `PDFPlumber + OpenAI` | ✅ Quick prototyping<br>✅ Lightweight extractions<br>✅ Page-by-page summaries | Extracts raw text and tables from PDFs using `pdfplumber`, then summarizes via GPT-4o. Ideal for simple forms or multi-page review. |
+| **v1** | `v1`   | `Agentic Document Extraction (ADE)` | ✅ Formatted documents<br>✅ Contracts w/ visual structure<br>✅ Section-level summaries | Sends full PDFs to an external ADE API and groups semantic chunks into labeled sections. Excellent for internal PDF templates or procurement docs. |
+| **v2** | `v2`   | `LangChain + GPT-4o` | ✅ Structured data schema<br>✅ Automating contract ingestion<br>✅ Extracting JSON records | Uses LangChain's document loader and schema detection to extract structured records with schema customization. Great for generating tabular insights from customer contracts. |
+
+---
+
+## 🧠 Feature Comparison
+
+| Feature | v0 | v1 | v2 |
+|--------|----|----|----|
+| Extracts Tables | ✅ | ✅ | ❌ (focused on text records) |
+| Extracts Raw Text | ✅ | ✅ | ✅ |
+| Section-Based Summarization | 🚫 | ✅ | ✅ |
+| Structured JSON Record Extraction | 🚫 | 🚫 | ✅ |
+| Custom Schema Selection | 🚫 | 🚫 | ✅ |
+| Full PDF Summarization | ✅ | ✅ | 🚫 |
+| Export CSV | ✅ | ✅ | ✅ |
+| Best For | Simpler docs | Long form or styled PDFs | Tabular contract data |
+
+---
+
+## ▶️ How to Run
+
+> ⚙️ Each version lives in its own **branch**.
+
+### Clone the repo:
+```bash
+git clone https://github.com/ozcanmiraay/opsbot.git
+cd opsbot
 ```
-           +---------------------+
-           | Upload Documents   |
-           | (.pdf / .txt / .csv)|
-           +---------+----------+
-                     |
-             +-------v--------+
-             | LLM Extraction |
-             | (GPT + Prompts)|
-             +-------+--------+
-                     |
-           +---------v-----------+
-           | Normalize & Clean   |
-           +---------+-----------+
-                     |
-         +-----------v-----------+
-         | Store to SQLite/CSV   |
-         +-----------+-----------+
-                     |
-       +-------------v---------------+
-       | (Optional) Streamlit View   |
-       +-----------------------------+
+
+### ⚙️ v0: PDFPlumber Text & Table Extractor
+```bash
+git checkout main
+streamlit run app/streamlit_app.py
 ```
 
-## Sample Output Fields
-- Customer Name
-- Product Purchased (e.g., Concentriq AP-Dx, Embeddings)
-- Contract Start Date / Value
-- Configuration Details
-- Custom Features
-- Internal Stakeholders
+### 🤖 v1: Agentic Document Intelligence
+```bash
+git checkout v1
+streamlit run ui/streamlit_app.py
+```
 
-## Tech Stack
-- Python
-- LangChain or OpenAI SDK
-- PyMuPDF/pdfplumber (PDF Parsing)
-- SQLite or CSV
-- Streamlit (Visualization Layer)
+### 🧠 v2: LangChain Schema-Based Extractor
+```bash
+git checkout v2
+streamlit run app/streamlit_app.py
+```
 
-## Why This Matters for Proscia
-This project reflects:
-- **Product Operations Mindset**: Prioritizing pain points, scoping MVPs, and building fast
-- **Startup Execution Grit**: Building scrappy solutions with high impact potential
-- **AI-First Thinking**: Leveraging LLMs for internal efficiency
-- **Cross-Functional Awareness**: Designed with executives, product managers, and engineers in mind
+---
 
-## Final Note
-This is a small step toward a bigger opportunity: **internal AI-powered tooling that saves time, reduces manual error, and amplifies decision velocity.**
+## 📸 Screenshots
 
-Thank you again for the inspiration, and I’m excited to show how I think about building for impact—before Day One. Can't wait to be your in-house AI engineer for internal tools!
+| v0: Lightweight PDF Reader | v1: ADE-Powered Chunk Viewer | v2: LangChain Schema Extractor |
+|----------------------------|-------------------------------|-------------------------------|
+| ![v0 Screenshot](./screenshots/v0.png) | ![v1 Screenshot](./screenshots/v1.png) | ![v2 Screenshot](./screenshots/v2.png) |
 
+---
+
+## 🧩 Real-World Use Cases at Proscia
+
+- **Contract Intelligence**: Pulling features, pricing, infrastructure specs, and deployment configurations from customer contracts.
+- **Sales Enablement**: Exporting client configuration from PDFs into CRM fields automatically.
+- **Internal Alignment**: Creating dashboards where executives and department leaders view only the data relevant to them.
+- **Audit Readiness**: Summarizing past signed forms and validating consistency across regions.
+
+---
+
+## 🛠️ Tech Stack
+
+- **LLM**: GPT-4o via `langchain-openai`
+- **Document Parsing**: `pdfplumber`, `PyPDFLoader`, Agentic Document Extractor by LandingAI
+- **Interface**: Streamlit
+- **Helpers**: LangChain prompt pipelines, recursive chunking, CSV export, HTML table rendering
+
+---
+
+## 🙌 Credits
+
+Special thanks to the **Product Operations Lead at Proscia** for their insights and support in identifying real automation opportunities that can drive cross-team efficiency.
