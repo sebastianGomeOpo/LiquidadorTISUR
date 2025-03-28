@@ -64,6 +64,18 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
+### 4. 🔐 Set up your API keys:
+
+Create a `.env` file in the root directory with the following content:
+
+```
+OPENAI_API_KEY=your-openai-api-key
+ADE_API_KEY=your-agentic-doc-extraction-api-key
+```
+
+- Get your **OpenAI API key** [here](https://platform.openai.com/account/api-keys)  
+- Request access to the **Agentic Document Extractor API (ADE)** [here](https://support.landing.ai/landinglens/docs/visionagent-api-key)
+  
 ---
 
 ## 🚀 Launch the App
