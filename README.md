@@ -110,7 +110,7 @@ streamlit run ui/streamlit_app.py
 
 ## 🎥 Demo Videos
 
-| PDFPlumber & LangChain-Based Extractor (v0, v1) | LangChain-Based Extractor & ADE-Powered Viewer (v2) |
+| PDFPlumber & LangChain-Based Extractor (v0, v1) | LangChain-Based Extractor & ADE-Powered Viewer (v1, v2) |
 |-------------------------------|--------------------------|
 | [Watch Demo Part 1!](https://www.loom.com/share/93ca1ac870d0480580b5a5d2d93db4f2?sid=126cd365-f141-4e12-817e-20df70afccaa) | [Watch Demo Part 2!](https://www.loom.com/share/91cff4e13f054cb2b4ed158fc494d866?sid=6da7125e-48c6-42ce-832b-9e486032f49f) |
 
