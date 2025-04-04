@@ -1,5 +1,5 @@
 # 📄 Intelligent PDF Extractor Suite  
-Built with 💙 by **Miray Ozcan** | Powered by **Streamlit + GPT-4o + LangChain + PDFPlumber**
+Built with 💙 by **Miray Ozcan** | Powered by **Streamlit + GPT-4o + Agentic Document Extractor + LangChain + PDFPlumber**
 
 > **Solve real internal bottlenecks with AI.**  
 > This multi-version toolset tackles one of the biggest pain points faced by product operations and cross-functional teams: **valuable business data trapped inside messy PDFs** like contracts, onboarding forms, invoices, or configuration summaries.  
