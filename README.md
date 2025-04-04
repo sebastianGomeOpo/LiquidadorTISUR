@@ -30,7 +30,7 @@ This repo aims to **automate that transformation pipeline** — turning unstruct
 
 | Feature | v0 | v1 | v2 |
 |--------|----|----|----|
-| Extracts Tables | ✅ | ❌ | ✅ |
+| Extracts Tables | ✅ | ✅ | ✅ |
 | Extracts Raw Text | ✅ | ✅ | ✅ |
 | Section-Based Summarization | 🚫 | ✅ | ✅ |
 | Structured JSON Record Extraction | 🚫 | ✅ | 🚫 |
