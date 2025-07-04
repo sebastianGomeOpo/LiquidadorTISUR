@@ -118,7 +118,7 @@ streamlit run ui/streamlit_app.py
 
 ---
 
-## 🧩 Real-World Use Cases at Proscia
+## 🧩 Real-World Use Cases
 
 - **Contract Intelligence**: Pulling features, pricing, infrastructure specs, and deployment configurations from customer contracts.
 - **Sales Enablement**: Exporting client configuration from PDFs into CRM fields automatically.
