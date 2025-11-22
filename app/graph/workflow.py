@@ -3,40 +3,34 @@ import tempfile
 from typing import TypedDict, List, Any, Optional, Dict
 from langgraph.graph import StateGraph, END
 
-# Importamos las herramientas puras que movimos a la capa 'tools'
-from app.tools.pdf_parser import (
-    extract_text_single_page,
-    extract_tables_single_page,
-    extract_total_pages
-)
+# --- IMPORT NUEVO: Herramienta de Landing AI ---
+from app.tools.landing_ade import extract_markdown_with_landing_ai
 
-# Cliente de OpenAI para la síntesis
+# Cliente de OpenAI para la extracción de datos
 from openai import OpenAI
 
 # --- 1. Definición del Estado del Agente ---
 class AgentState(TypedDict):
     """
     Define la estructura de datos que viaja a través del grafo.
-    Todos los nodos leen y escriben en este diccionario compartido.
     """
     file_bytes: bytes          # Input: El archivo PDF crudo
-    metadata: Dict[str, Any]   # Input: Datos extra (nombre archivo, fuente, etc.)
+    metadata: Dict[str, Any]   # Input: Datos extra (nombre archivo, etc.)
     
-    extracted_text: str        # Output intermedio: Texto consolidado
-    extracted_tables: List[Any]# Output intermedio: Tablas detectadas
+    extracted_text: str        # Output intermedio: Markdown generado por Landing AI
+    extracted_tables: List[Any]# Output intermedio: (Vacio con Landing AI, ya que las tablas están en el markdown)
     
-    summary: str               # Output final: Resumen generado por IA
+    summary: str               # Output final: JSON con los datos de TISUR
     error: Optional[str]       # Manejo de errores
 
 # --- 2. Definición de Nodos (Pasos del Proceso) ---
 
 def parse_pdf_node(state: AgentState) -> AgentState:
     """
-    NODO 1: Ingesta y Extracción.
-    Toma los bytes del PDF, utiliza las herramientas de `pdf_parser` y 
-    extrae el contenido crudo.
+    NODO 1: Ingesta y Extracción con Landing AI.
+    Convierte el PDF a Markdown de alta fidelidad.
     """
-    print("--- 🔄 NODE: Parsing PDF ---")
+    print("--- 🔄 NODE: Parsing PDF with Landing AI ---")
     
     # Si ya hay un error previo, saltamos
     if state.get("error"):
@@ -44,46 +38,27 @@ def parse_pdf_node(state: AgentState) -> AgentState:
 
     tmp_path = None
     try:
-        # 1. Guardar bytes en archivo temporal para procesamiento seguro
-        # (pdfplumber maneja mejor paths para aperturas múltiples que streams)
+        # 1. Guardar bytes en archivo temporal (Landing AI requiere un path de archivo)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(state["file_bytes"])
             tmp_path = tmp.name
 
-        # 2. Ejecutar extracción usando las herramientas de 'app/tools'
-        total_pages = extract_total_pages(tmp_path)
-        text_content = []
-        all_tables = []
+        # 2. Ejecutar extracción usando la nueva herramienta
+        markdown_text = extract_markdown_with_landing_ai(tmp_path)
+        
+        print(f"   ✅ Extracción completada. Longitud: {len(markdown_text)} caracteres.")
 
-        print(f"   📄 Procesando {total_pages} páginas...")
-
-        for i in range(total_pages):
-            # A. Extraer Texto
-            page_text = extract_text_single_page(tmp_path, i)
-            text_content.append(f"--- Página {i+1} ---\n{page_text}")
-
-            # B. Extraer Tablas
-            tables, strategy = extract_tables_single_page(tmp_path, i)
-            if tables:
-                for df in tables:
-                    # Convertimos DataFrame a dict para que sea serializable en el estado
-                    # Formato simple: {"columns": [...], "data": [[...], [...]]}
-                    table_data = {
-                        "page": i + 1,
-                        "columns": df.columns.tolist(),
-                        "data": df.values.tolist()
-                    }
-                    all_tables.append(table_data)
-
-        # 3. Actualizar el estado con los resultados
+        # Nota: Landing AI integra las tablas visualmente dentro del texto Markdown.
+        # Dejamos extracted_tables vacío porque el LLM leerá las tablas desde el texto.
+        
         return {
-            "extracted_text": "\n\n".join(text_content),
-            "extracted_tables": all_tables
+            "extracted_text": markdown_text,
+            "extracted_tables": [] 
         }
 
     except Exception as e:
         print(f"❌ Error en parsing: {e}")
-        return {"error": f"Error al leer el PDF: {str(e)}"}
+        return {"error": f"Error al procesar el PDF: {str(e)}"}
     
     finally:
         # Limpieza: Borrar archivo temporal
@@ -92,52 +67,70 @@ def parse_pdf_node(state: AgentState) -> AgentState:
 
 def summarize_node(state: AgentState) -> AgentState:
     """
-    NODO 2: Inteligencia / Resumen.
-    Toma el texto extraído y utiliza un LLM (GPT-4o) para generar insights.
+    NODO 2: Extracción de Datos Estructurados (TISUR).
+    Analiza el Markdown y extrae los campos específicos solicitados.
     """
-    print("--- 🧠 NODE: AI Summarization ---")
+    print("--- 🧠 NODE: AI Data Extraction ---")
     
     if state.get("error"):
         return state
 
     text = state.get("extracted_text", "")
-    if not text:
-        return {"summary": "No se pudo extraer texto suficiente para resumir."}
+    if not text or "Error" in text[:50]:
+        return {"summary": "No se pudo extraer texto válido para procesar."}
 
-    # Recortar texto si es excesivamente largo para evitar errores de límite de tokens
-    # (Una implementación más robusta usaría map-reduce o chunking de LangChain)
-    text_preview = text[:25000] 
+    # Recortar texto si es excesivamente largo (Landing AI puede generar mucho texto)
+    # GPT-4o tiene una ventana grande, pero por seguridad y costo limitamos.
+    text_preview = text[:50000] 
 
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
-        # Contexto adicional si viene de los metadatos
         filename = state.get("metadata", {}).get("filename", "Documento")
 
+        # --- PROMPT ESPECÍFICO PARA DATOS TISUR ---
         prompt = f"""
-        Actúa como un analista experto de operaciones. Analiza el siguiente texto extraído de un documento PDF llamado '{filename}'.
+        Actúa como un experto en logística aduanera y liquidaciones portuarias.
+        Analiza el siguiente documento que ha sido convertido a formato MARKDOWN (preservando tablas y estructura).
         
-        Tu tarea:
-        1. Generar un resumen ejecutivo conciso.
-        2. Identificar los puntos clave, fechas importantes o datos monetarios si existen.
-        3. Si hay tablas mencionadas en el texto, resalta su relevancia.
+        Nombre del archivo: '{filename}'
+        
+        Tu OBJETIVO es extraer EXCLUSIVAMENTE la siguiente información y devolverla en formato JSON válido.
+        Busca en encabezados, cuerpos de texto y tablas.
+        
+        CAMPOS A EXTRAER:
+        1. "Nombre de la nave": (Busca: MN, M/N, Vessel, Nave, Vapor)
+        2. "Nro de Nota de embarque": (Busca: B/L, Bill of Lading, Nota de Embarque, Conocimiento de Embarque)
+        3. "Nro de Lote": (Busca: Lote, Batch, Lot No)
+        4. "Puerto de destino": (Busca: Puerto de Descarga, Port of Discharge, POD, Destino)
+        5. "Tipo de carga": (Descripción de la mercancía, ej: Trigo, Maíz, Bobinas, Urea)
+        6. "Cantidad total": (Busca el Peso Neto o Peso Bruto total manifestado, ej: 5000 MT, KGS)
+        7. "Nro de DAM": (Declaración Aduanera de Mercancías, formato numérico de aduanas)
 
-        Texto del Documento:
+        REGLAS:
+        - Si un dato no aparece en el documento, asigna el valor null.
+        - Devuelve SOLO el objeto JSON. No incluyas bloques de código (```json) ni texto adicional.
+        - Si hay múltiples valores posibles (ej. varios lotes), intenta consolidarlos o tomar el principal.
+
+        Documento (Markdown):
         {text_preview}
         """
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "Eres un asistente útil y preciso para análisis de documentos corporativos."},
+                {"role": "system", "content": "Eres un motor de extracción de datos JSON preciso."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3
+            temperature=0.0 # Temperatura 0 para máxima precisión y determinismo
         )
 
         summary = response.choices[0].message.content.strip()
         
-        # Actualizamos el estado con el resumen final
+        # Limpieza básica por si el modelo devuelve markdown code blocks
+        if summary.startswith("```json"):
+            summary = summary.replace("```json", "").replace("```", "")
+        
         return {"summary": summary}
 
     except Exception as e:
@@ -146,30 +139,26 @@ def summarize_node(state: AgentState) -> AgentState:
 
 # --- 3. Construcción del Grafo ---
 
-# Inicializar el grafo con nuestro esquema de estado
 workflow = StateGraph(AgentState)
 
 # Añadir los nodos
 workflow.add_node("parse_pdf", parse_pdf_node)
 workflow.add_node("summarize", summarize_node)
 
-# Definir las aristas (el flujo)
-# Inicio -> Parsear -> Resumir -> Fin
+# Definir las aristas
 workflow.set_entry_point("parse_pdf")
 workflow.add_edge("parse_pdf", "summarize")
 workflow.add_edge("summarize", END)
 
-# Compilar el grafo para hacerlo ejecutable
+# Compilar
 app = workflow.compile()
 
-# --- 4. Función Pública de Ejecución (Wrapper) ---
+# --- 4. Función Pública ---
 
 async def run_extraction(file_bytes: bytes, metadata: Dict[str, Any] = {}) -> Dict[str, Any]:
     """
-    Esta es la función principal que llamarán tanto la API como Streamlit.
-    Se encarga de inicializar el estado y disparar el grafo.
+    Función principal llamada por la API y Streamlit.
     """
-    # Estado inicial vacío
     initial_state = {
         "file_bytes": file_bytes,
         "metadata": metadata,
@@ -179,8 +168,5 @@ async def run_extraction(file_bytes: bytes, metadata: Dict[str, Any] = {}) -> Di
         "error": None
     }
     
-    # Ejecutar el grafo de forma asíncrona
-    # LangGraph maneja el flujo entre nodos
     final_state = await app.ainvoke(initial_state)
-    
     return final_state
