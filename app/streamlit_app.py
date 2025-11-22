@@ -1,144 +1,93 @@
 import streamlit as st
-import tempfile
+import pandas as pd
 import os
-import openai
 from dotenv import load_dotenv
-from app.pdf_parser import (
-    extract_text_single_page,
-    extract_tables_single_page,
-    extract_total_pages,
-    save_debug_image_single_page,
-    summarize_pdf,
-    summarize_page
-)
+import asyncio
 
-# ──────────────────────── SETUP ────────────────────────
+# Importar el MISMO orquestador que usa la API
+from app.graph.workflow import run_extraction
+from app.core.telemetry import configure_telemetry
+
+# Configuración inicial
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+st.set_page_config(page_title="OpsBot: PDF Intelligence", page_icon="🤖", layout="wide")
+configure_telemetry() # Configurar LangSmith al cargar
 
-st.set_page_config(page_title="PDF Intelligence Extractor", page_icon="🧠", layout="wide")
+# --- UI Header ---
+st.title("🤖 OpsBot: Extractor Inteligente v1")
+st.markdown("""
+Esta herramienta utiliza **LangGraph** para orquestar la extracción de datos.
+El mismo motor alimenta la API que conecta con Power Automate.
+""")
 
-# ──────────────────────── HEADER ────────────────────────
-st.title("📄 PDF Intelligence Extractor")
-st.markdown("A minimal PDF text & table parsing tool powered by **PDFPlumber** and **GPT-4o**. "
-            "Easily extract tables, full text, and generate smart summaries per page or document.")
+# --- Sidebar: Estado del Sistema ---
+with st.sidebar:
+    st.header("🔧 Estado del Sistema")
+    if os.getenv("OPENAI_API_KEY"):
+        st.success("✅ OpenAI API Key detectada")
+    else:
+        st.error("❌ Falta OPENAI_API_KEY")
+    
+    if os.getenv("LANGCHAIN_API_KEY"):
+        st.info("📡 LangSmith Tracing activo")
 
-# ──────────────────────── FILE UPLOADER ────────────────────────
-uploaded_file = st.file_uploader("📎 Upload a PDF file", type=["pdf"])
+# --- Main Area: Upload ---
+uploaded_file = st.file_uploader("Sube un contrato o reporte (PDF)", type=["pdf"])
 
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
+    st.divider()
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.info(f"📄 Archivo: {uploaded_file.name}")
+    
+    # Botón de acción
+    if st.button("🚀 Ejecutar Análisis (LangGraph)"):
+        with st.spinner("Ejecutando grafo de extracción... (Parsing -> Reasoning -> Summary)"):
+            try:
+                # 1. Leer bytes (Streamlit devuelve un BytesIO, lo convertimos a bytes)
+                # Nota: uploaded_file.read() mueve el cursor, si se reusa hay que hacer seek(0)
+                uploaded_file.seek(0)
+                file_bytes = uploaded_file.read()
+                
+                # 2. Invocar el grafo (Async wrapper para Streamlit)
+                # metadata para LangSmith
+                metadata = {"source": "streamlit_ui", "filename": uploaded_file.name}
+                
+                # Run async loop in sync context
+                result = asyncio.run(run_extraction(file_bytes, metadata=metadata))
+                
+                if result.get("error"):
+                    st.error(f"Error en el grafo: {result['error']}")
+                else:
+                    # 3. Mostrar Resultados
+                    st.success("✅ Procesamiento completado")
+                    
+                    # Sección Resumen
+                    st.subheader("📝 Resumen Ejecutivo (GPT-4o)")
+                    st.info(result.get("summary"))
+                    
+                    # Sección Tablas
+                    tables = result.get("extracted_tables", [])
+                    if tables:
+                        st.subheader(f"📊 Tablas Detectadas ({len(tables)})")
+                        for i, table_data in enumerate(tables):
+                            with st.expander(f"Tabla #{i+1}"):
+                                # Convertir lista de listas a DataFrame si es necesario
+                                if isinstance(table_data, list):
+                                    df = pd.DataFrame(table_data[1:], columns=table_data[0])
+                                else:
+                                    df = table_data
+                                st.dataframe(df)
+                    else:
+                        st.warning("No se detectaron tablas estructuradas.")
 
-    st.session_state["pdf_path"] = pdf_path
+                    # Sección Texto Crudo (Debug)
+                    with st.expander("🔍 Ver Texto Crudo Extraído"):
+                        st.text(result.get("extracted_text"))
 
-    # ──────────────────────── TOTAL PAGES ────────────────────────
-    try:
-        total_pages = extract_total_pages(pdf_path)
-    except Exception as e:
-        st.error(f"❌ Failed to read PDF: {e}")
-        st.stop()
-
-    # ──────────────────────── TEXT EXTRACTION ────────────────────────
-    if "full_text_by_page" not in st.session_state:
-        st.session_state["full_text_by_page"] = {
-            f"Page {i+1}": extract_text_single_page(pdf_path, i)
-            for i in range(total_pages)
-        }
-
-    # ──────────────────────── FULL DOCUMENT SUMMARY ────────────────────────
-    st.markdown("### 🧠 Document Summary")
-
-    if "global_summary" not in st.session_state:
-        if st.button("🪄 Generate Summary for Entire PDF"):
-            with st.spinner("Running GPT-4o to summarize the entire document..."):
-                st.session_state["global_summary"] = summarize_pdf(st.session_state["full_text_by_page"])
-
-    if "global_summary" in st.session_state:
-        st.success("Here's a quick overview of your document:")
-        st.info(st.session_state["global_summary"])
-
-    # ──────────────────────── PAGE SELECTION ────────────────────────
-    st.markdown("### 📑 Select a Page to Explore")
-    page_options = [f"Page {i}" for i in range(1, total_pages + 1)]
-    selected_page_label = st.selectbox("Go to a specific page", page_options)
-    selected_page_idx = int(selected_page_label.split(" ")[1])
-    page_label = f"Page {selected_page_idx}"
-    page_text = st.session_state["full_text_by_page"][page_label]
-
-    if "last_selected_page" not in st.session_state:
-        st.session_state.last_selected_page = selected_page_idx
-
-    if selected_page_idx != st.session_state.last_selected_page:
-        st.session_state.expand_text_section = False
-        st.session_state.last_selected_page = selected_page_idx
-
-    if "expand_text_section" not in st.session_state:
-        st.session_state.expand_text_section = False
-
-    # ──────────────────────── TEXT & SUMMARY SECTION ────────────────────────
-    with st.expander("📘 Extracted Text", expanded=st.session_state.expand_text_section):
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            summarize_triggered = st.button("📝 Summarize This Page", key=f"summary-btn-{selected_page_idx}")
-
-        if summarize_triggered:
-            if "global_summary" not in st.session_state:
-                st.warning("Please generate the full PDF summary first.")
-            else:
-                with st.spinner("Summarizing this page..."):
-                    summary = summarize_page(page_text, context_summary=st.session_state["global_summary"])
-                    st.session_state[f"page_{selected_page_idx}_summary"] = summary
-                    st.session_state.expand_text_section = True
-
-        if f"page_{selected_page_idx}_summary" in st.session_state:
-            st.markdown("#### 🔍 Page Summary")
-            st.info(st.session_state[f"page_{selected_page_idx}_summary"])
-
-        st.markdown("#### 📄 Full Page Text")
-        st.text(page_text)
-
-    # ──────────────────────── TABLE EXTRACTION ────────────────────────
-    with st.expander("📊 Extracted Tables", expanded=False):
-        try:
-            tables, strategy = extract_tables_single_page(pdf_path, selected_page_idx - 1)
-        except Exception as e:
-            st.error(f"❌ Error extracting tables: {e}")
-            st.stop()
-
-        strategy_color = {
-            "lines": "🟢",
-            "none": "🔴",
-            "error": "❌",
-            "unknown": "⚪️"
-        }.get(strategy, "⚪️")
-
-        st.markdown(f"**Detection Strategy:** {strategy_color} `{strategy}`")
-
-        if tables and strategy != "none":
-            for i, df in enumerate(tables):
-                st.markdown(f"#### 📎 Table {i+1}")
-                st.dataframe(df)
-                csv = df.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label=f"⬇️ Download Table {i+1} (CSV)",
-                    data=csv,
-                    file_name=f"{page_label}_table{i+1}.csv",
-                    mime="text/csv"
-                )
-        else:
-            st.info("No tables found on this page.")
-
-    # ──────────────────────── DEBUG IMAGE ────────────────────────
-    if st.checkbox("🖼️ Show Table Detection Preview?"):
-        st.markdown(f"### 🔍 Table Preview — {page_label}")
-        try:
-            img_bytes = save_debug_image_single_page(pdf_path, selected_page_idx - 1)
-            st.image(img_bytes, caption=f"🧩 Detected Table Layout — {page_label}")
-        except Exception as e:
-            st.error(f"⚠️ Could not generate preview image: {e}")
-
-# ──────────────────────── FOOTER ────────────────────────
-st.markdown("---")
-st.markdown("🔧 Built with 💙 by **Miray Ozcan** | Powered by **PDFPlumber + GPT-4o + Streamlit**")
+            except Exception as e:
+                st.error(f"Ocurrió un error inesperado: {str(e)}")
+                # Imprimir stacktrace en consola para el dev
+                import traceback
+                traceback.print_exc()
